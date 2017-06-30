@@ -2,7 +2,6 @@ extern crate sha1;
 
 static WS_GUID: &'static str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 static BASE64: &'static [u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-//const MAX_HEADERS: usize = 124;
 
 pub fn hash_key(key: &[u8]) -> String {
     let mut hasher = sha1::Sha1::new();
@@ -13,7 +12,6 @@ pub fn hash_key(key: &[u8]) -> String {
     encode_base64(&hasher.digest().bytes())
 }
 
-// This code is based on rustc_serialize base64 STANDARD
 fn encode_base64(data: &[u8]) -> String {
     let len = data.len();
     let mod_len = len % 3;

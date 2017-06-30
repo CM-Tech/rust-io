@@ -4,7 +4,4 @@ version = "0.1.0"
 authors = ["modderme123 <hidden>"]
 
 [dependencies]
-rocket = "0.2.8"
-rocket_codegen = "0.2.8"
-ws = "0.7.3"
 sha1 = "0.2"

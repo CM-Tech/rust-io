@@ -5,6 +5,44 @@
   <title>Rust!</title>
 </head>
 
-<body>Hello, World!</body>
+<body>
+  <input id="url" value="ws://localhost:8000/game">
+  <button id="connect">Connect</button>
+  <hr>
+  <h1>Messages:</h1>
+  <ul id="messages"></ul>
+  <hr>
+  <textarea id="message"></textarea>
+  <button id="send">Send</button>
+  <script>
+    var button = document.getElementById("connect")
+    button.onclick = function() {
+      var ws = new WebSocket(document.getElementById("url").value);
+      ws.onopen = function() {
+        button.innerHTML = "Connected"
+        document.getElementById("messages").innerHTML = ""
+      }
+      send.onclick = function() {
+        var message = document.getElementById("message");
+
+        if (message.value !== "") {
+          ws.send(message.value);
+          var text = document.createElement("li");
+          text.innerHTML = "sent: " + message.value
+          document.getElementById("messages").appendChild(text);
+          message.value = "";
+        }
+      }
+      ws.onmessage = function(e) {
+        var text = document.createElement("li");
+        text.innerHTML = "received: " + e.data
+        document.getElementById("messages").appendChild(text);
+      }
+      ws.onclose = function(e) {
+        button.innerHTML = "Disconnected (click to connect)"
+      }
+    };
+  </script>
+</body>
 
 </html>

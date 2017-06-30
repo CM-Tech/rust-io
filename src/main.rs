@@ -1,61 +1,64 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-
-extern crate rocket;
-
 mod hash;
+
+use std::net::{TcpListener, TcpStream};
+use std::thread;
+use std::io::{Read, Write};
 use hash::hash_key;
 
-use std::io::Result;
-use rocket::request::{self, Request, FromRequest};
-use rocket::response::{self, NamedFile, Response, Responder};
-use rocket::http::Status;
-use rocket::Outcome;
+fn home_page() -> String {
+    format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{}",
+            include_str!("../static/index.html"))
+}
 
-struct APIKey(String);
+fn handle_client(mut stream: TcpStream) {
+    let mut buf = [0; 512];
+    match stream.read(&mut buf) {
+        Ok(_) => {
+            let req_str = String::from_utf8_lossy(&buf);
+            let mut headers = req_str.lines();
+            let req_url = headers.next().unwrap().split(" ").collect::<Vec<&str>>()[1];
+            let upgrade = headers.find(|x| x.contains("Upgrade:"));
+            let key = headers.find(|x| x.contains("Sec-WebSocket-Key:"));
 
-impl<'a, 'r> FromRequest<'a, 'r> for APIKey {
-    type Error = ();
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<APIKey, ()> {
-        let keys: Vec<_> = request.headers().get("Sec-WebSocket-Key").collect();
-        if keys.len() != 1 {
-            return Outcome::Failure((Status::BadRequest, ()));
+            match (upgrade, key) {
+                (None, _) => {
+                    println!("{}", req_url);
+                    if req_url == "/" {
+                        stream.write(home_page().as_bytes());
+                        stream.flush();
+                    }
+                    return;
+                }
+                (Some(_), Some(key)) => {
+                    let key_value = key.split(": ").collect::<Vec<&str>>()[1];
+                    let bla = format!("Sec-WebSocket-Accept: {}",
+                                      hash_key(key_value.as_bytes()));
+                    let strings: Vec<&str> = vec!["HTTP/1.1 101",
+                                                  "Connection: Upgrade",
+                                                  "Upgrade: websocket",
+                                                  bla.as_str(),
+                                                  "\r\n"];
+                    stream.write(strings.join("\r\n").as_bytes());
+                    stream.flush();
+                }
+                _ => (),
+            }
         }
-
-        return Outcome::Success(APIKey(hash_key(keys[0].as_bytes())));
+        Err(e) => println!("Unable to read stream: {}", e),
     }
-}
-
-struct Game {
-    key: String,
-}
-
-#[get("/game")]
-fn game(key: APIKey) -> Game {
-    Game { key: key.0 }
-}
-
-impl<'r> Responder<'r> for Game {
-    fn respond(self) -> response::Result<'r> {
-        Response::build()
-            .status(Status::Accepted)
-            .raw_header("Upgrade", "WebSocket")
-            .raw_header("Connection", "Upgrade")
-            .raw_header("Sec-WebSocket-Accept", self.key)
-            .ok()
-    }
-}
-
-#[get("/")]
-fn index() -> Result<NamedFile> {
-    NamedFile::open("static/index.html")
-}
-
-fn rocket() -> rocket::Rocket {
-    rocket::ignite().mount("/", routes![index, game])
 }
 
 fn main() {
-    rocket().launch()
+    let addr = "127.0.0.1:8888";
+    let listener = TcpListener::bind(addr);
+    match listener {
+        Ok(listen) => {
+            println!("Listening on addr: {}", addr);
+            for stream in listen.incoming() {
+                let stream = stream.unwrap();
+                thread::spawn(move || handle_client(stream));
+            }
+        }
+        Err(e) => println!("Failed to bind server: {}", e),
+    }
 }
