@@ -6,42 +6,38 @@
 </head>
 
 <body>
-  <input id="url" value="ws://localhost:8000/game">
-  <button id="connect">Connect</button>
-  <hr>
-  <h1>Messages:</h1>
+  <h1 id="title">Messages (Connecting):</h1>
   <ul id="messages"></ul>
   <hr>
   <textarea id="message"></textarea>
   <button id="send">Send</button>
   <script>
-    var button = document.getElementById("connect")
-    button.onclick = function() {
-      var ws = new WebSocket(document.getElementById("url").value);
-      ws.onopen = function() {
-        button.innerHTML = "Connected"
-        document.getElementById("messages").innerHTML = ""
-      }
-      send.onclick = function() {
-        var message = document.getElementById("message");
+    var ws = new WebSocket("ws://" + window.location.host);
+    var title = document.getElementById("title");
+    ws.onopen = function() {
+      document.getElementById("messages").innerHTML = "";
+      title.innerHTML = "Messages (Connected):";
+    }
+    send.onclick = function() {
+      var message = document.getElementById("message");
 
-        if (message.value !== "") {
-          ws.send(message.value);
-          var text = document.createElement("li");
-          text.innerHTML = "sent: " + message.value
-          document.getElementById("messages").appendChild(text);
-          message.value = "";
-        }
-      }
-      ws.onmessage = function(e) {
+      if (message.value !== "") {
+        ws.send(message.value);
         var text = document.createElement("li");
-        text.innerHTML = "received: " + e.data
+        text.innerHTML = "sent: " + message.value;
         document.getElementById("messages").appendChild(text);
+        message.value = "";
       }
-      ws.onclose = function(e) {
-        button.innerHTML = "Disconnected (click to connect)"
-      }
-    };
+    }
+    ws.onmessage = function(e) {
+      var text = document.createElement("li");
+      text.innerHTML = "received: " + e.data
+      document.getElementById("messages").appendChild(text);
+    }
+    ws.onclose = function(e) {
+      title.innerHTML = "Messages (Disconnected):"
+      window.location.reload();
+    }
   </script>
 </body>
 

@@ -10,6 +10,53 @@ fn home_page() -> String {
             include_str!("../static/index.html"))
 }
 
+fn handle_websocket(mut stream: TcpStream) {
+    loop {
+        let mut bytes = vec![0; 512];
+        match stream.read(&mut bytes) {
+            Ok(_) if bytes.len() > 0 => {
+                loop {
+                    if bytes.last().unwrap() != &0 {
+                        break;
+                    }
+                    bytes.pop();
+                }
+                let len = bytes.len();
+
+                if bytes[0] == 0x81 {
+                    let index_first_mask = 2;
+                    let index_first_data_byte = index_first_mask + 4;
+                    let masks = &bytes[index_first_mask..index_first_data_byte];
+
+                    let mut dec = vec![0; len - index_first_data_byte];
+                    let mut j = 0;
+                    loop {
+                        if j == len - index_first_data_byte {
+                            break;
+                        }
+                        dec[j] = bytes[j + index_first_data_byte] ^ masks[j % 4];
+                        j += 1;
+                    }
+                    println!("{:?}", String::from_utf8(dec));
+
+                    let string = "Hello".as_bytes();
+                    let data = [0x81, string.len() as u8];
+                    let mut v = vec![];
+                    v.extend_from_slice(&data);
+                    v.extend_from_slice(string);
+                    stream.write(&v).ok();
+                    stream.flush().ok();
+                }
+            }
+            Err(e) => {
+                println!("closing connection because: {}", e);
+                return;
+            }
+            _ => (),
+        };
+    }
+}
+
 fn handle_client(mut stream: TcpStream) {
     let mut buf = [0; 512];
     match stream.read(&mut buf) {
@@ -21,27 +68,30 @@ fn handle_client(mut stream: TcpStream) {
             let key = headers.find(|x| x.contains("Sec-WebSocket-Key:"));
 
             match (upgrade, key) {
-                (None, _) => {
-                    println!("{}", req_url);
-                    if req_url == "/" {
-                        stream.write(home_page().as_bytes());
-                        stream.flush();
-                    }
+                (None, _) if req_url == "/" => {
+                    stream.write(home_page().as_bytes()).ok();
+                    stream.flush().ok();
+
                     return;
                 }
                 (Some(_), Some(key)) => {
                     let key_value = key.split(": ").collect::<Vec<&str>>()[1];
-                    let bla = format!("Sec-WebSocket-Accept: {}",
-                                      hash_key(key_value.as_bytes()));
+                    let accept_header = format!("Sec-WebSocket-Accept: {}", hash_key(key_value.as_bytes()));
                     let strings: Vec<&str> = vec!["HTTP/1.1 101",
                                                   "Connection: Upgrade",
                                                   "Upgrade: websocket",
-                                                  bla.as_str(),
+                                                  accept_header.as_str(),
                                                   "\r\n"];
-                    stream.write(strings.join("\r\n").as_bytes());
-                    stream.flush();
+                    stream.write(strings.join("\r\n").as_bytes()).ok();
+                    stream.flush().ok();
+
+                    handle_websocket(stream)
                 }
-                _ => (),
+                _ => {
+                    println!("{}", req_url);
+
+                    return;
+                }
             }
         }
         Err(e) => println!("Unable to read stream: {}", e),
