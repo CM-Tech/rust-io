@@ -14,14 +14,8 @@ fn handle_websocket(mut stream: TcpStream) {
     loop {
         let mut bytes = vec![0; 512];
         match stream.read(&mut bytes) {
-            Ok(_) if bytes.len() > 0 => {
-                loop {
-                    if bytes.last().unwrap() != &0 {
-                        break;
-                    }
-                    bytes.pop();
-                }
-                let len = bytes.len();
+            Ok(len) if len > 0 => {
+                bytes.truncate(len);
 
                 if bytes[0] == 0x81 {
                     let index_first_mask = 2;
@@ -43,7 +37,7 @@ fn handle_websocket(mut stream: TcpStream) {
                     let data = [0x81, string.len() as u8];
                     let mut v = vec![];
                     v.extend_from_slice(&data);
-                    v.extend_from_slice(string);
+                    v.extend_from_slice(&string);
                     stream.write(&v).ok();
                     stream.flush().ok();
                 }
