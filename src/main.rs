@@ -23,7 +23,7 @@ fn handle_websocket(mut stream: TcpStream) {
                     let masks = &bytes[index_first_mask..index_first_data_byte];
 
                     let mut dec = vec![0; len - index_first_data_byte];
-                    for j in 0...(len - index_first_data_byte) {
+                    for j in 0..(len - index_first_data_byte) {
                         dec[j] = bytes[j + index_first_data_byte] ^ masks[j % 4];
                     }
                     println!("{:?}", String::from_utf8(dec));
