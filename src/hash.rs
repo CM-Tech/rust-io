@@ -24,8 +24,7 @@ fn encode_base64(data: &[u8]) -> String {
         let enc = |val| BASE64[val as usize];
         let mut write = |val| *out_iter.next().unwrap() = val;
 
-        while let (Some(one), Some(two), Some(three)) =
-            (in_iter.next(), in_iter.next(), in_iter.next()) {
+        while let (Some(one), Some(two), Some(three)) = (in_iter.next(), in_iter.next(), in_iter.next()) {
             let g24 = one << 16 | two << 8 | three;
             write(enc((g24 >> 18) & 63));
             write(enc((g24 >> 12) & 63));

@@ -66,11 +66,7 @@ fn handle_client(mut stream: TcpStream) {
                 (Some(_), Some(key)) => {
                     let key_value = key.split(": ").collect::<Vec<&str>>()[1];
                     let accept_header = format!("Sec-WebSocket-Accept: {}", hash_key(key_value.as_bytes()));
-                    let strings: Vec<&str> = vec!["HTTP/1.1 101",
-                                                  "Connection: Upgrade",
-                                                  "Upgrade: websocket",
-                                                  accept_header.as_str(),
-                                                  "\r\n"];
+                    let strings: Vec<&str> = vec!["HTTP/1.1 101", "Connection: Upgrade", "Upgrade: websocket", accept_header.as_str(), "\r\n"];
                     stream.write(strings.join("\r\n").as_bytes()).ok();
                     stream.flush().ok();
 
